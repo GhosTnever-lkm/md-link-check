@@ -14,13 +14,14 @@ from .core import check_repo
 def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="md-link-check", description="Check relative links and anchors in Markdown files (offline).")
     p.add_argument("path", nargs="?", default=".")
+    p.add_argument("--exclude", action="append", default=[], metavar="GLOB", help="skip Markdown files matching this glob (repeatable)")
     p.add_argument("--json", action="store_true")
     p.add_argument("--version", action="version", version=__version__)
     args = p.parse_args(argv)
     if not Path(args.path).is_dir():
         print(f"md-link-check: not a directory: {args.path}", file=sys.stderr)
         return 2
-    problems = check_repo(args.path)
+    problems = check_repo(args.path, exclude=tuple(args.exclude))
     if args.json:
         print(json.dumps([p.__dict__ for p in problems], indent=2, ensure_ascii=False))
     elif not problems:

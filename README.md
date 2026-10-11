@@ -7,6 +7,7 @@
 ```bash
 python -m md_link_check            # текущая папка
 python -m md_link_check docs --json
+python -m md_link_check . --exclude "vendor/*"   # пропустить файлы по маске
 ```
 
 ```text

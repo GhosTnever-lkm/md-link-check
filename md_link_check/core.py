@@ -93,12 +93,18 @@ def check_file(path: Path, root: Path, cache: dict[Path, set[str]]) -> list[Prob
     return problems
 
 
-def check_repo(root: str | Path) -> list[Problem]:
+def check_repo(root: str | Path, exclude: tuple[str, ...] = ()) -> list[Problem]:
+    """Check every Markdown file under root; `exclude` globs skip files by relative path."""
+    import fnmatch
+
     base = Path(root).resolve()
     cache: dict[Path, set[str]] = {}
     problems: list[Problem] = []
     for md in sorted(base.rglob("*.md")):
-        if any(part in {".git", "node_modules", ".venv"} for part in md.relative_to(base).parts):
+        rel = md.relative_to(base)
+        if any(part in {".git", "node_modules", ".venv"} for part in rel.parts):
+            continue
+        if any(fnmatch.fnmatch(rel.as_posix(), pat) for pat in exclude):
             continue
         problems.extend(check_file(md, base, cache))
     return problems
