@@ -35,3 +35,7 @@ python -m unittest discover -s tests -t .
 ## Лицензия
 
 MIT — см. [LICENSE](LICENSE).
+
+## История изменений
+
+См. [CHANGELOG.md](CHANGELOG.md). Политика безопасности — в [SECURITY.md](SECURITY.md).
