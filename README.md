@@ -39,3 +39,16 @@ MIT — см. [LICENSE](LICENSE).
 ## История изменений
 
 См. [CHANGELOG.md](CHANGELOG.md). Политика безопасности — в [SECURITY.md](SECURITY.md).
+
+## Использование в CI
+
+Фрагмент для GitHub Actions (Python 3.10+, без зависимостей):
+
+```yaml
+- uses: actions/checkout@v4
+- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"
+- name: md-link-check
+  run: python -m md_link_check .
+```
