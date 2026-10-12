@@ -29,6 +29,13 @@ class SlugTests(unittest.TestCase):
     def test_headings_inside_code_fences_ignored(self):
         self.assertEqual(anchors_of("```\n# not a heading\n```\n"), set())
 
+    def test_long_fence_is_not_closed_by_shorter_fence(self):
+        text = "````markdown\n```\n# hidden\n```\n````\n# visible\n"
+        self.assertEqual(anchors_of(text), {"visible"})
+
+    def test_setext_heading_creates_anchor(self):
+        self.assertEqual(anchors_of("Quick Start\n===========\n"), {"quick-start"})
+
 
 class CheckTests(unittest.TestCase):
     def test_valid_links_pass(self):
@@ -70,6 +77,17 @@ class CheckTests(unittest.TestCase):
         root = repo({"README.md": "[x](my%20doc.md)\n", "my doc.md": "hi\n"})
         self.assertEqual(check_repo(root), [])
 
+    def test_markdown_extension_and_setext_target_are_scanned(self):
+        root = repo({"README.md": "[guide](guide.markdown#quick-start)\n", "guide.markdown": "Quick Start\n===========\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_links_inside_long_fence_are_skipped(self):
+        root = repo({
+            "README.md": "````markdown\n```\n[x](missing.md)\n```\n````\n[ok](exists.md)\n",
+            "exists.md": "# Exists\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
 
 class CliTests(unittest.TestCase):
     def run_cli(self, argv):
@@ -93,6 +111,15 @@ class CliTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):
             code, _ = self.run_cli(["/no/such/dir"])
         self.assertEqual(code, 2)
+
+    def test_version_matches_package_metadata(self):
+        from md_link_check import __version__
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), self.assertRaises(SystemExit) as raised:
+            main(["--version"])
+        self.assertEqual(raised.exception.code, 0)
+        self.assertEqual(buf.getvalue().strip(), __version__)
 
 
 if __name__ == "__main__":

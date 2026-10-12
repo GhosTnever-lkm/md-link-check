@@ -11,7 +11,8 @@ from urllib.parse import unquote
 LINK_RE = re.compile(r"!?\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
-FENCE_RE = re.compile(r"^(```|~~~)")
+FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
+SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)\s*$")
 EXTERNAL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 
 
@@ -31,16 +32,41 @@ def slugify(heading: str) -> str:
     return text.replace(" ", "-")
 
 
+def _fence_transition(line: str, fence: tuple[str, int] | None) -> tuple[tuple[str, int] | None, bool]:
+    """Return the active fence and whether this line is a valid fence delimiter."""
+    match = FENCE_RE.match(line)
+    if not match:
+        return fence, False
+    marker = match.group("fence")
+    info = match.group("info")
+    if fence is None:
+        if marker[0] == "`" and "`" in info:
+            return None, False
+        return (marker[0], len(marker)), True
+    if marker[0] == fence[0] and len(marker) >= fence[1] and not info.strip():
+        return None, True
+    return fence, False
+
+
 def anchors_of(text: str) -> set[str]:
     anchors: set[str] = set()
     counts: dict[str, int] = {}
-    in_fence = False
-    for line in text.splitlines():
-        if FENCE_RE.match(line.strip()):
-            in_fence = not in_fence
+    fence: tuple[str, int] | None = None
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        fence, delimiter = _fence_transition(line, fence)
+        if delimiter or fence is not None:
             continue
-        if in_fence:
+
+        if SETEXT_RE.match(line) and index > 0:
+            title = lines[index - 1].strip()
+            if title and not HEADING_RE.match(title) and not FENCE_RE.match(title):
+                slug = slugify(title)
+                n = counts.get(slug, 0)
+                anchors.add(slug if n == 0 else f"{slug}-{n}")
+                counts[slug] = n + 1
             continue
+
         match = HEADING_RE.match(line)
         if not match:
             continue
@@ -52,12 +78,10 @@ def anchors_of(text: str) -> set[str]:
 
 
 def iter_links(text: str):
-    in_fence = False
+    fence: tuple[str, int] | None = None
     for number, line in enumerate(text.splitlines(), start=1):
-        if FENCE_RE.match(line.strip()):
-            in_fence = not in_fence
-            continue
-        if in_fence:
+        fence, delimiter = _fence_transition(line, fence)
+        if delimiter or fence is not None:
             continue
         line = INLINE_CODE_RE.sub("", line)
         for match in LINK_RE.finditer(line):
@@ -100,7 +124,9 @@ def check_repo(root: str | Path, exclude: tuple[str, ...] = ()) -> list[Problem]
     base = Path(root).resolve()
     cache: dict[Path, set[str]] = {}
     problems: list[Problem] = []
-    for md in sorted(base.rglob("*.md")):
+    for md in sorted(base.rglob("*")):
+        if not md.is_file() or md.suffix.lower() not in {".md", ".markdown"}:
+            continue
         rel = md.relative_to(base)
         if any(part in {".git", "node_modules", ".venv"} for part in rel.parts):
             continue
