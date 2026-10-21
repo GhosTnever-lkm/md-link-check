@@ -26,6 +26,20 @@ class SlugTests(unittest.TestCase):
     def test_duplicate_headings_get_suffix(self):
         self.assertEqual(anchors_of("# A\n# A\n"), {"a", "a-1"})
 
+    def test_explicit_suffix_after_duplicate_gets_unique_anchor(self):
+        self.assertEqual(anchors_of("# A\n# A\n# A-1\n"), {"a", "a-1", "a-1-1"})
+
+    def test_explicit_suffix_before_duplicate_is_not_overwritten(self):
+        self.assertEqual(anchors_of("# A-1\n# A\n# A\n"), {"a-1", "a", "a-2"})
+
+    def test_generated_suffix_collisions_keep_incrementing(self):
+        text = "# A\n# A\n# A-1\n# A-1\n# A\n"
+        self.assertEqual(anchors_of(text), {"a", "a-1", "a-1-1", "a-1-2", "a-2"})
+
+    def test_setext_and_atx_headings_share_unique_namespace(self):
+        text = "A\n===\n# A\nA-1\n---\n"
+        self.assertEqual(anchors_of(text), {"a", "a-1", "a-1-1"})
+
     def test_headings_inside_code_fences_ignored(self):
         self.assertEqual(anchors_of("```\n# not a heading\n```\n"), set())
 
@@ -50,6 +64,10 @@ class CheckTests(unittest.TestCase):
     def test_missing_anchor_reported(self):
         root = repo({"README.md": "[x](a.md#missing)\n", "a.md": "# Real\n"})
         self.assertEqual([p.reason for p in check_repo(root)], ["anchor not found in target"])
+
+    def test_links_to_collision_resolved_anchors_pass(self):
+        root = repo({"README.md": "# A-1\n# A\n# A\n[x](#a-2)\n"})
+        self.assertEqual(check_repo(root), [])
 
     def test_same_page_anchor(self):
         root = repo({"README.md": "# Top\n[ok](#top) [bad](#nope)\n"})

@@ -48,6 +48,17 @@ def _fence_transition(line: str, fence: tuple[str, int] | None) -> tuple[tuple[s
     return fence, False
 
 
+def _add_anchor(slug: str, anchors: set[str], counts: dict[str, int]) -> None:
+    """Allocate a heading ID without colliding with explicit or generated IDs."""
+    n = counts.get(slug, 0)
+    anchor = slug if n == 0 else f"{slug}-{n}"
+    while anchor in anchors:
+        n += 1
+        anchor = f"{slug}-{n}"
+    anchors.add(anchor)
+    counts[slug] = n + 1
+
+
 def anchors_of(text: str) -> set[str]:
     anchors: set[str] = set()
     counts: dict[str, int] = {}
@@ -62,18 +73,14 @@ def anchors_of(text: str) -> set[str]:
             title = lines[index - 1].strip()
             if title and not HEADING_RE.match(title) and not FENCE_RE.match(title):
                 slug = slugify(title)
-                n = counts.get(slug, 0)
-                anchors.add(slug if n == 0 else f"{slug}-{n}")
-                counts[slug] = n + 1
+                _add_anchor(slug, anchors, counts)
             continue
 
         match = HEADING_RE.match(line)
         if not match:
             continue
         slug = slugify(match.group(2))
-        n = counts.get(slug, 0)
-        anchors.add(slug if n == 0 else f"{slug}-{n}")
-        counts[slug] = n + 1
+        _add_anchor(slug, anchors, counts)
     return anchors
 
 

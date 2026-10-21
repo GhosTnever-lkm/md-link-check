@@ -10,7 +10,7 @@
 Скачайте wheel из [последнего релиза](https://github.com/GhosTnever-lkm/md-link-check/releases/latest) и установите:
 
 ```bash
-python -m pip install md_link_check-0.1.3-py3-none-any.whl
+python -m pip install md_link_check-0.1.4-py3-none-any.whl
 ```
 
 Затем запускайте:
@@ -33,6 +33,7 @@ docs/guide.md:20: anchor not found in target: ../README.md#instalation
 
 - `[текст](file.md)`, `[текст](dir/file.md#section)`, `[текст](#section)` и картинки `![alt](img.png)`.
 - Якоря считаются GitHub-способом: строчные буквы, пунктуация убирается, пробелы становятся дефисами; повторы получают `-1`, `-2`.
+- Якоря заголовков не конфликтуют с уже занятыми суффиксами: `A-1`, `A`, `A` дают `a-1`, `a`, `a-2`.
 - Ссылки внутри блоков кода (``` и ~~~) пропускаются; длина закрывающего ограждения должна соответствовать открывающему.
 - Заголовки ATX (`# Title`) и Setext (`Title` с подчёркиванием `====`) создают якоря.
 - Markdown-файлы с расширениями `.md` и `.markdown` сканируются независимо от регистра расширения.
