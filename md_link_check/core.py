@@ -96,7 +96,8 @@ def check_file(path: Path, root: Path, cache: dict[Path, set[str]]) -> list[Prob
         if EXTERNAL_RE.match(target) or target.startswith("//"):
             continue
         file_part, _, fragment = target.partition("#")
-        file_part = unquote(file_part)
+        # Split URL syntax before decoding escaped filename characters.
+        file_part = unquote(file_part.partition("?")[0])
         if file_part == "":
             dest = path
         else:

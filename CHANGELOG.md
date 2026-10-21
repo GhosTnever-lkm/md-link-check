@@ -5,6 +5,18 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-10-21
+
+### Fixed
+
+- Ignore URL query strings when resolving relative file links, while still checking the target file and heading fragment.
+- Resolve query-only links against the current Markdown document.
+- Preserve percent-encoded `?` and `#` characters in filenames by separating URL syntax before decoding.
+
+### Added
+
+- Seven regression tests for query strings, query-only links, encoded filenames, and missing file/anchor diagnostics.
+
 ## [0.1.2] - 2026-10-13
 
 ### Added
@@ -34,7 +46,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Skips external URLs, fenced code blocks and inline code.
 - Path-escape detection and percent-decoding of paths.
 
-[Unreleased]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/GhosTnever-lkm/md-link-check/releases/tag/v0.1.0

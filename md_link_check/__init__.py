@@ -1,3 +1,3 @@
 """md-link-check: offline check of relative links and heading anchors in Markdown."""
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"

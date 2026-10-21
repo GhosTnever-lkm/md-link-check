@@ -73,6 +73,40 @@ class CheckTests(unittest.TestCase):
         root = repo({"README.md": "[x](../../etc/passwd)\n"})
         self.assertEqual([p.reason for p in check_repo(root)], ["points outside the repository"])
 
+    def test_relative_link_query_is_not_part_of_filename(self):
+        root = repo({"README.md": "[guide](guide.md?plain=1#intro)\n", "guide.md": "# Intro\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_query_does_not_hide_missing_anchor(self):
+        root = repo({"README.md": "[guide](guide.md?plain=1#missing)\n", "guide.md": "# Intro\n"})
+        problems = check_repo(root)
+        self.assertEqual([p.reason for p in problems], ["anchor not found in target"])
+        self.assertEqual(problems[0].target, "guide.md?plain=1#missing")
+
+    def test_query_only_link_uses_current_document(self):
+        root = repo({"README.md": "# Top\n[guide](?plain=1#top)\n[view](?plain=1)\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_encoded_question_mark_remains_in_filename(self):
+        import os
+
+        if os.name == "nt":
+            self.skipTest("Windows does not allow question marks in filenames")
+        root = repo({"README.md": "[guide](guide%3Fdraft.md?plain=1#intro)\n", "guide?draft.md": "# Intro\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_encoded_hash_remains_in_filename(self):
+        root = repo({"README.md": "[guide](guide%23draft.md?plain=1#intro)\n", "guide#draft.md": "# Intro\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_query_separator_in_fragment_is_not_a_path_query(self):
+        root = repo({"README.md": "[guide](guide.md#intro?plain=1)\n", "guide.md": "# Intro\n"})
+        self.assertEqual([p.reason for p in check_repo(root)], ["anchor not found in target"])
+
+    def test_query_does_not_hide_missing_file(self):
+        root = repo({"README.md": "[guide](missing.md?plain=1#intro)\n"})
+        self.assertEqual([p.reason for p in check_repo(root)], ["target file does not exist"])
+
     def test_percent_encoded_path(self):
         root = repo({"README.md": "[x](my%20doc.md)\n", "my doc.md": "hi\n"})
         self.assertEqual(check_repo(root), [])
