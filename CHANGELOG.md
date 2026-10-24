@@ -5,6 +5,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-25
+
+### Fixed
+
+- Parse balanced parentheses in Markdown link destinations so valid paths such as `docs/setup_(windows).md` resolve correctly.
+
+### Added
+
+- Add regression tests for filenames with one and multiple parenthetical segments, including anchor validation.
+
 ## [0.1.5] - 2026-10-25
 
 ### Fixed
@@ -67,7 +77,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Skips external URLs, fenced code blocks and inline code.
 - Path-escape detection and percent-decoding of paths.
 
-[Unreleased]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.5...HEAD
+[Unreleased]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/GhosTnever-lkm/md-link-check/compare/v0.1.2...v0.1.3
