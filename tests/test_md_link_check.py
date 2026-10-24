@@ -73,6 +73,20 @@ class CheckTests(unittest.TestCase):
         })
         self.assertEqual(check_repo(root), [])
 
+    def test_nested_parentheses_in_link_destination(self):
+        root = repo({
+            "README.md": "[manual](docs/setup_(windows_(steam)).md#install)\n",
+            "docs/setup_(windows_(steam)).md": "# Install\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_escaped_parentheses_in_link_destination(self):
+        root = repo({
+            "README.md": "[manual](docs/setup_\\(windows\\).md)\n",
+            "docs/setup_(windows).md": "# Setup\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
     def test_missing_file_reported(self):
         root = repo({"README.md": "[x](nope.md)\n"})
         problems = check_repo(root)

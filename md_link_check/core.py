@@ -8,14 +8,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote
 
-LINK_RE = re.compile(
-    r"!?\[[^\]]*\]\(\s*<?((?:[^()\s>]+|\([^()\s>]*\))+)?>?(?:\s+\"[^\"]*\")?\s*\)"
-)
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
 FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)\s*$")
 EXTERNAL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
+LINK_START_RE = re.compile(r"!?\[[^\]]*\]\(\s*")
 
 
 @dataclass(frozen=True)
@@ -140,8 +138,86 @@ def iter_links(text: str):
         if delimiter or fence is not None:
             continue
         line = INLINE_CODE_RE.sub("", line)
-        for match in LINK_RE.finditer(line):
-            yield number, match.group(1)
+        search_from = 0
+        while match := LINK_START_RE.search(line, search_from):
+            parsed = _parse_link_destination(line, match.end())
+            if parsed is None:
+                search_from = match.end()
+                continue
+            target, search_from = parsed
+            yield number, target
+
+
+def _parse_link_destination(line: str, start: int) -> tuple[str, int] | None:
+    """Read an inline-link destination, honoring nested and escaped parentheses."""
+    index = start
+    destination: list[str] = []
+    if index < len(line) and line[index] == "<":
+        index += 1
+        while index < len(line):
+            char = line[index]
+            if char == "\\" and index + 1 < len(line):
+                escaped = line[index + 1]
+                if escaped in "()>":
+                    destination.append(escaped)
+                else:
+                    destination.extend(("\\", escaped))
+                index += 2
+            elif char == ">":
+                index += 1
+                break
+            else:
+                destination.append(char)
+                index += 1
+        else:
+            return None
+    else:
+        depth = 0
+        while index < len(line):
+            char = line[index]
+            if char == "\\" and index + 1 < len(line):
+                escaped = line[index + 1]
+                if escaped in "()":
+                    destination.append(escaped)
+                else:
+                    destination.extend(("\\", escaped))
+                index += 2
+            elif char == "(":
+                depth += 1
+                destination.append(char)
+                index += 1
+            elif char == ")":
+                if depth == 0:
+                    break
+                depth -= 1
+                destination.append(char)
+                index += 1
+            elif char.isspace() and depth == 0:
+                break
+            else:
+                destination.append(char)
+                index += 1
+        if depth:
+            return None
+
+    while index < len(line) and line[index].isspace():
+        index += 1
+    if index < len(line) and line[index] == '"':
+        index += 1
+        while index < len(line) and line[index] != '"':
+            if line[index] == "\\" and index + 1 < len(line):
+                index += 2
+            else:
+                index += 1
+        if index == len(line):
+            return None
+        index += 1
+        while index < len(line) and line[index].isspace():
+            index += 1
+
+    if index >= len(line) or line[index] != ")":
+        return None
+    return "".join(destination), index + 1
 
 
 def check_file(path: Path, root: Path, cache: dict[Path, set[str]]) -> list[Problem]:
