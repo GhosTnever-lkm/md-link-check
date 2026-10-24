@@ -8,7 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote
 
-LINK_RE = re.compile(r"!?\[[^\]]*\]\(\s*<?([^)\s>]+)>?(?:\s+\"[^\"]*\")?\s*\)")
+LINK_RE = re.compile(
+    r"!?\[[^\]]*\]\(\s*<?((?:[^()\s>]+|\([^()\s>]*\))+)?>?(?:\s+\"[^\"]*\")?\s*\)"
+)
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
 INLINE_CODE_RE = re.compile(r"`+[^`]*`+")
 FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")

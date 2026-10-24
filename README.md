@@ -10,7 +10,7 @@
 Скачайте wheel из [последнего релиза](https://github.com/GhosTnever-lkm/md-link-check/releases/latest) и установите:
 
 ```bash
-python -m pip install md_link_check-0.1.5-py3-none-any.whl
+python -m pip install md_link_check-0.1.6-py3-none-any.whl
 ```
 
 Затем запускайте:
@@ -39,6 +39,7 @@ docs/guide.md:20: anchor not found in target: ../README.md#instalation
 - Заголовки и ссылки внутри HTML-комментариев `<!-- ... -->` игнорируются, как в отрисованном Markdown GitHub.
 - Markdown-файлы с расширениями `.md` и `.markdown` сканируются независимо от регистра расширения.
 - Процент-кодирование в путях (`my%20doc.md`) раскодируется.
+- Сбалансированные скобки в относительных путях (`docs/setup_(windows).md`) распознаются как часть назначения ссылки.
 - Параметры URL (`guide.md?plain=1#intro`) не считаются частью имени файла; файл и якорь проверяются. Ссылка `?plain=1#intro` относится к текущему документу.
 
 Не проверяется: внешние URL (`http:`, `https:`, `mailto:` и др.), якоря внутри не-Markdown файлов, ссылки с HTML-тегами `<a href>`.

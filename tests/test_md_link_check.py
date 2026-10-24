@@ -59,6 +59,20 @@ class CheckTests(unittest.TestCase):
         root = repo({"README.md": "[d](docs/a.md) [s](docs/a.md#intro)\n", "docs/a.md": "# Intro\n"})
         self.assertEqual(check_repo(root), [])
 
+    def test_balanced_parentheses_in_link_destination(self):
+        root = repo({
+            "README.md": "[manual](docs/setup_(windows).md#quick-start)\n",
+            "docs/setup_(windows).md": "# Quick Start\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_multiple_parenthetical_segments_in_link_destination(self):
+        root = repo({
+            "README.md": "[manual](docs/setup_(windows)_(steam).md)\n",
+            "docs/setup_(windows)_(steam).md": "# Setup\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
     def test_missing_file_reported(self):
         root = repo({"README.md": "[x](nope.md)\n"})
         problems = check_repo(root)
