@@ -59,13 +59,55 @@ def _add_anchor(slug: str, anchors: set[str], counts: dict[str, int]) -> None:
     counts[slug] = n + 1
 
 
+def _strip_html_comments(line: str, in_comment: bool) -> tuple[str, bool]:
+    """Remove HTML comments outside inline code and retain comment state across lines."""
+    visible: list[str] = []
+    index = 0
+    code_ticks = 0
+    while index < len(line):
+        if in_comment:
+            end = line.find("-->", index)
+            if end == -1:
+                return "".join(visible), True
+            index = end + 3
+            in_comment = False
+            continue
+
+        if line[index] == "`":
+            end = index + 1
+            while end < len(line) and line[end] == "`":
+                end += 1
+            run = end - index
+            if code_ticks == 0:
+                code_ticks = run
+            elif run == code_ticks:
+                code_ticks = 0
+            visible.append(line[index:end])
+            index = end
+            continue
+
+        if code_ticks == 0 and line.startswith("<!--", index):
+            in_comment = True
+            index += 4
+            continue
+
+        visible.append(line[index])
+        index += 1
+    return "".join(visible), in_comment
+
+
 def anchors_of(text: str) -> set[str]:
     anchors: set[str] = set()
     counts: dict[str, int] = {}
     fence: tuple[str, int] | None = None
+    in_html_comment = False
     lines = text.splitlines()
     for index, line in enumerate(lines):
-        fence, delimiter = _fence_transition(line, fence)
+        if fence is not None:
+            fence, _ = _fence_transition(line, fence)
+            continue
+        line, in_html_comment = _strip_html_comments(line, in_html_comment)
+        fence, delimiter = _fence_transition(line, None)
         if delimiter or fence is not None:
             continue
 
@@ -86,8 +128,13 @@ def anchors_of(text: str) -> set[str]:
 
 def iter_links(text: str):
     fence: tuple[str, int] | None = None
+    in_html_comment = False
     for number, line in enumerate(text.splitlines(), start=1):
-        fence, delimiter = _fence_transition(line, fence)
+        if fence is not None:
+            fence, _ = _fence_transition(line, fence)
+            continue
+        line, in_html_comment = _strip_html_comments(line, in_html_comment)
+        fence, delimiter = _fence_transition(line, None)
         if delimiter or fence is not None:
             continue
         line = INLINE_CODE_RE.sub("", line)

@@ -43,6 +43,9 @@ class SlugTests(unittest.TestCase):
     def test_headings_inside_code_fences_ignored(self):
         self.assertEqual(anchors_of("```\n# not a heading\n```\n"), set())
 
+    def test_headings_inside_multiline_html_comments_are_ignored(self):
+        self.assertEqual(anchors_of("<!--\n# Hidden\n-->\n# Visible\n"), {"visible"})
+
     def test_long_fence_is_not_closed_by_shorter_fence(self):
         text = "````markdown\n```\n# hidden\n```\n````\n# visible\n"
         self.assertEqual(anchors_of(text), {"visible"})
@@ -82,6 +85,19 @@ class CheckTests(unittest.TestCase):
     def test_link_inside_fence_is_skipped(self):
         root = repo({"README.md": "```\n[x](missing.md)\n```\n"})
         self.assertEqual(check_repo(root), [])
+
+    def test_links_inside_multiline_html_comments_are_skipped(self):
+        root = repo({"README.md": "<!-- start\n[x](missing.md)\n-->\n[y](also-missing.md)\n"})
+        problems = check_repo(root)
+        self.assertEqual([problem.target for problem in problems], ["also-missing.md"])
+
+    def test_html_comment_markers_inside_fences_do_not_hide_later_links(self):
+        root = repo({"README.md": "```\n<!--\n```\n[x](missing.md)\n"})
+        self.assertEqual([problem.target for problem in check_repo(root)], ["missing.md"])
+
+    def test_html_comment_markers_inside_inline_code_are_ignored(self):
+        root = repo({"README.md": "`<!-- [x](ignored.md) -->` [y](missing.md)\n"})
+        self.assertEqual([problem.target for problem in check_repo(root)], ["missing.md"])
 
     def test_link_inside_inline_code_is_skipped(self):
         root = repo({"README.md": "Пример: `[x](missing.md)` — не ссылка.\n"})
