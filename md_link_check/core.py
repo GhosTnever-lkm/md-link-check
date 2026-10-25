@@ -14,6 +14,10 @@ FENCE_RE = re.compile(r"^ {0,3}(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
 SETEXT_RE = re.compile(r"^ {0,3}(?:=+|-+)\s*$")
 EXTERNAL_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9+.-]*:")
 LINK_START_RE = re.compile(r"!?\[[^\]]*\]\(\s*")
+REFERENCE_DEFINITION_RE = re.compile(r"^ {0,3}\[(?P<label>(?:\\.|[^\[\]]){1,999})\]:[ \t]*(?P<destination>.+?)\s*$")
+REFERENCE_LINK_RE = re.compile(
+    r"!?\[(?P<label>(?:\\.|[^\[\]])+)\](?:\[(?P<reference>(?:\\.|[^\[\]])*)\])?"
+)
 
 
 @dataclass(frozen=True)
@@ -22,6 +26,13 @@ class Problem:
     line: int
     target: str
     reason: str
+
+
+@dataclass(frozen=True)
+class MarkdownLink:
+    line: int
+    target: str
+    error: str | None = None
 
 
 def slugify(heading: str) -> str:
@@ -127,15 +138,24 @@ def anchors_of(text: str) -> set[str]:
 
 
 def iter_links(text: str):
-    fence: tuple[str, int] | None = None
-    in_html_comment = False
-    for number, line in enumerate(text.splitlines(), start=1):
-        if fence is not None:
-            fence, _ = _fence_transition(line, fence)
+    visible_lines = list(_visible_markdown_lines(text))
+    references: dict[str, str] = {}
+    definition_lines: set[int] = set()
+
+    for number, line in visible_lines:
+        line = INLINE_CODE_RE.sub("", line)
+        definition = REFERENCE_DEFINITION_RE.match(line)
+        if not definition:
             continue
-        line, in_html_comment = _strip_html_comments(line, in_html_comment)
-        fence, delimiter = _fence_transition(line, None)
-        if delimiter or fence is not None:
+        target = _parse_reference_destination(definition.group("destination"))
+        label = _normalize_reference_label(definition.group("label"))
+        if target is None or not label:
+            continue
+        references.setdefault(label, target)
+        definition_lines.add(number)
+
+    for number, line in visible_lines:
+        if number in definition_lines:
             continue
         line = INLINE_CODE_RE.sub("", line)
         search_from = 0
@@ -145,7 +165,96 @@ def iter_links(text: str):
                 search_from = match.end()
                 continue
             target, search_from = parsed
-            yield number, target
+            yield MarkdownLink(number, target)
+
+        for match in REFERENCE_LINK_RE.finditer(line):
+            # Inline links take precedence over shortcut references.
+            if line[match.end():].lstrip().startswith("("):
+                continue
+            label = match.group("label")
+            reference = match.group("reference")
+            if reference is not None:
+                label = reference or label
+                target = references.get(_normalize_reference_label(label))
+                if target is None:
+                    yield MarkdownLink(number, f"[{label}]", "reference link is not defined")
+                else:
+                    yield MarkdownLink(number, target)
+            else:
+                target = references.get(_normalize_reference_label(label))
+                if target is not None:
+                    yield MarkdownLink(number, target)
+
+
+def _visible_markdown_lines(text: str):
+    fence: tuple[str, int] | None = None
+    in_html_comment = False
+    for number, line in enumerate(text.splitlines(), start=1):
+        if fence is not None:
+            fence, _ = _fence_transition(line, fence)
+            yield number, ""
+            continue
+        line, in_html_comment = _strip_html_comments(line, in_html_comment)
+        fence, delimiter = _fence_transition(line, None)
+        if delimiter or fence is not None:
+            yield number, ""
+            continue
+        yield number, line
+
+
+def _normalize_reference_label(label: str) -> str:
+    label = re.sub(r"\\([!\"#$%&'()*+,\-./:;<=>?@\[\\\]^_`{|}~])", r"\1", label)
+    return " ".join(label.split()).casefold()
+
+
+def _parse_reference_destination(value: str) -> str | None:
+    value = value.lstrip()
+    if not value:
+        return None
+    destination: list[str] = []
+    if value.startswith("<"):
+        index = 1
+        while index < len(value):
+            char = value[index]
+            if char == "\\" and index + 1 < len(value):
+                destination.append(value[index + 1])
+                index += 2
+            elif char == ">":
+                return "".join(destination) or None
+            else:
+                destination.append(char)
+                index += 1
+        return None
+
+    depth = 0
+    index = 0
+    while index < len(value):
+        char = value[index]
+        if char == "\\" and index + 1 < len(value):
+            escaped = value[index + 1]
+            if escaped in "()":
+                destination.append(escaped)
+            else:
+                destination.extend(("\\", escaped))
+            index += 2
+        elif char.isspace() and depth == 0:
+            break
+        elif char == "(":
+            depth += 1
+            destination.append(char)
+            index += 1
+        elif char == ")":
+            if depth == 0:
+                return None
+            depth -= 1
+            destination.append(char)
+            index += 1
+        else:
+            destination.append(char)
+            index += 1
+    if depth or not destination:
+        return None
+    return "".join(destination)
 
 
 def _parse_link_destination(line: str, start: int) -> tuple[str, int] | None:
@@ -224,7 +333,11 @@ def check_file(path: Path, root: Path, cache: dict[Path, set[str]]) -> list[Prob
     text = path.read_text(encoding="utf-8", errors="replace")
     problems: list[Problem] = []
     rel = str(path.relative_to(root))
-    for number, target in iter_links(text):
+    for link in iter_links(text):
+        if link.error:
+            problems.append(Problem(rel, link.line, link.target, link.error))
+            continue
+        number, target = link.line, link.target
         if EXTERNAL_RE.match(target) or target.startswith("//"):
             continue
         file_part, _, fragment = target.partition("#")

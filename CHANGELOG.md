@@ -5,6 +5,19 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-25
+
+### Added
+
+- Check full, collapsed, and shortcut Markdown reference links, including image references.
+- Report unresolved full reference links instead of silently skipping them.
+- Add regression coverage for labels, duplicate definitions, inline-link precedence, and ignored code/comment regions.
+
+### Changed
+
+- Refresh the README Actions example to use the same immutable action pins as CI.
+
+
 ## [0.1.7] - 2026-10-25
 
 ### Fixed

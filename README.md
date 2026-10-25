@@ -10,7 +10,7 @@
 Скачайте wheel из [последнего релиза](https://github.com/GhosTnever-lkm/md-link-check/releases/latest) и установите:
 
 ```bash
-python -m pip install md_link_check-0.1.7-py3-none-any.whl
+python -m pip install md_link_check-0.1.8-py3-none-any.whl
 ```
 
 Затем запускайте:
@@ -32,6 +32,7 @@ docs/guide.md:20: anchor not found in target: ../README.md#instalation
 ## Что проверяется
 
 - `[текст](file.md)`, `[текст](dir/file.md#section)`, `[текст](#section)` и картинки `![alt](img.png)`.
+- Ссылки ссылочного типа `[текст][id]`, `[текст][]` и `[id]` проверяются по определению `[id]: docs/guide.md#section`; неразрешённые явные ссылки отмечаются как ошибка.
 - Якоря считаются GitHub-способом: строчные буквы, пунктуация убирается, пробелы становятся дефисами; повторы получают `-1`, `-2`.
 - Якоря заголовков не конфликтуют с уже занятыми суффиксами: `A-1`, `A`, `A` дают `a-1`, `a`, `a-2`.
 - Ссылки внутри блоков кода (``` и ~~~) пропускаются; длина закрывающего ограждения должна соответствовать открывающему.
@@ -67,8 +68,8 @@ MIT — см. [LICENSE](LICENSE).
 Фрагмент для GitHub Actions (Python 3.10+, без зависимостей):
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: actions/setup-python@v5
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+- uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
   with:
     python-version: "3.12"
 - name: md-link-check

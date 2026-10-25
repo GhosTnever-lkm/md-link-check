@@ -1,6 +1,7 @@
 import contextlib
 import io
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -57,6 +58,54 @@ class SlugTests(unittest.TestCase):
 class CheckTests(unittest.TestCase):
     def test_valid_links_pass(self):
         root = repo({"README.md": "[d](docs/a.md) [s](docs/a.md#intro)\n", "docs/a.md": "# Intro\n"})
+        self.assertEqual(check_repo(root), [])
+
+    def test_full_reference_link_checks_target_and_anchor(self):
+        root = repo({
+            "README.md": "[Guide][ SET UP ]\n\n[set   up]: docs/guide.md#quick-start \"Guide\"\n",
+            "docs/guide.md": "# Quick Start\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_collapsed_and_shortcut_reference_links(self):
+        root = repo({
+            "README.md": "[guide][] [GUIDE]\n\n[guide]: docs/guide.md#intro\n",
+            "docs/guide.md": "# Intro\n",
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_image_reference_link_is_checked(self):
+        root = repo({
+            "README.md": "![diagram][arch]\n\n[arch]: images/diagram.png\n",
+            "images/diagram.png": "image",
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_undefined_full_reference_is_reported(self):
+        root = repo({"README.md": "[Guide][missing]\n"})
+        problems = check_repo(root)
+        self.assertEqual(len(problems), 1)
+        self.assertEqual(problems[0].line, 1)
+        self.assertEqual(problems[0].target, "[missing]")
+        self.assertEqual(problems[0].reason, "reference link is not defined")
+
+    def test_reference_definitions_inside_fences_and_comments_are_ignored(self):
+        root = repo({
+            "README.md": (
+                "```markdown\n[hidden]: missing.md\n[hidden][hidden]\n```\n"
+                "<!--\n[commented]: missing.md\n[commented][commented]\n-->\n"
+            )
+        })
+        self.assertEqual(check_repo(root), [])
+
+    def test_first_reference_definition_wins_and_inline_link_keeps_precedence(self):
+        root = repo({
+            "README.md": (
+                "[guide](docs/guide.md) [guide][doc]\n\n"
+                "[doc]: docs/guide.md#intro\n[doc]: missing.md\n"
+            ),
+            "docs/guide.md": "# Intro\n",
+        })
         self.assertEqual(check_repo(root), [])
 
     def test_balanced_parentheses_in_link_destination(self):
@@ -207,6 +256,16 @@ class CliTests(unittest.TestCase):
         with contextlib.redirect_stderr(io.StringIO()):
             code, _ = self.run_cli(["/no/such/dir"])
         self.assertEqual(code, 2)
+
+    def test_readme_ci_example_matches_pinned_workflow_actions(self):
+        readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+        workflow = (Path(__file__).resolve().parents[1] / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        for action in ("actions/checkout", "actions/setup-python"):
+            expected = re.search(rf"uses:\s*{re.escape(action)}@([^\s]+)", workflow)
+            actual = re.search(rf"uses:\s*{re.escape(action)}@([^\s]+)", readme)
+            self.assertIsNotNone(expected)
+            self.assertIsNotNone(actual)
+            self.assertEqual(actual.group(1), expected.group(1))
 
     def test_version_matches_package_metadata(self):
         from md_link_check import __version__
